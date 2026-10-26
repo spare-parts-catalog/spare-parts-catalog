@@ -1469,6 +1469,7 @@ function reportMatches() {
 
 // ---------- Report Table ----------
 
+
 function reportHtml(rows) {
   const isMachine = reportKind === 'machine';
 
@@ -1482,18 +1483,17 @@ function reportHtml(rows) {
         'Item number',
         'Serial no.',
         'Description',
-        'อะไหล่ที่เกี่ยวข้อง',
-        'QR Code'
+        'อะไหล่ที่เกี่ยวข้อง'
       ]
     : [
         'รูปภาพ',
         'Remark / รหัสอะไหล่',
         'Description',
-        'เครื่องจักรที่เกี่ยวข้อง',
-        'QR Code'
+        'เครื่องจักรที่เกี่ยวข้อง'
       ];
 
   const body = rows.map(record => {
+
     if (isMachine) {
       const relatedParts = rel(record)
         .filter(item => item.kind === 'part')
@@ -1511,13 +1511,6 @@ function reportHtml(rows) {
           <td>${esc(record.serial || '—')}</td>
           <td>${esc(name(record))}</td>
           <td>${relatedParts}</td>
-          <td>
-            <img
-              class="report-qr"
-              src="${qrImage('machine', record.id)}"
-              alt="QR Code เครื่องจักร"
-            >
-          </td>
         </tr>
       `;
     }
@@ -1547,27 +1540,25 @@ function reportHtml(rows) {
         <td>${esc(record.code)}</td>
         <td>${esc(name(record))}</td>
         <td>${machines}</td>
-        <td>
-          <img
-            class="report-qr"
-            src="${qrImage('part', record.id)}"
-            alt="QR Code อะไหล่"
-          >
-        </td>
       </tr>
     `;
   }).join('');
 
   return `
     <section class="box parts-report">
-      <h2 class="catalog-report-title">${title}</h2>
+
+      <h2 class="catalog-report-title">
+        ${title}
+      </h2>
 
       <p class="report-count">
         จำนวน ${rows.length} รายการ
       </p>
 
       <div class="catalog-report-scroll">
+
         <table class="parts-report-table">
+
           <thead>
             <tr>
               ${headers.map(header => `
@@ -1579,11 +1570,15 @@ function reportHtml(rows) {
           <tbody>
             ${body}
           </tbody>
+
         </table>
+
       </div>
+
     </section>
   `;
 }
+
 
 // ---------- Report Output ----------
 
@@ -2626,43 +2621,6 @@ render = function () {
 render();
 
 
-/* =========================================
-   REMOVE QR CODE FROM PRINT REPORTS
-   ทั้งรายงานเครื่องจักรและรายงานอะไหล่
-   ========================================= */
-
-const originalReportHtml = reportHtml;
-
-reportHtml = function (rows) {
-  const html = originalReportHtml(rows);
-
-  const template = document.createElement('template');
-  template.innerHTML = html;
-
-  const table = template.content.querySelector(
-    '.parts-report-table'
-  );
-
-  if (table) {
-    // ลบคอลัมน์สุดท้าย (QR Code) จากทุกแถว
-    table.querySelectorAll('tr').forEach(row => {
-      const lastCell = row.lastElementChild;
-
-      if (lastCell) {
-        lastCell.remove();
-      }
-    });
-  }
-
-  return template.innerHTML;
-};
-
-// แสดงรายงานใหม่เมื่ออยู่หน้ารายงาน
-if (page === 'reports' && !detail) {
-  renderReports();
-}
-
-
 /* ===== กล่องยืนยันการลบ ===== */
 
 function confirmDeleteDialog(
@@ -2760,3 +2718,4 @@ function confirmDeleteDialog(
     subtree: true
   });
 })();
+

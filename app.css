@@ -1,4 +1,3 @@
-
 /* ==========================================
    SPARE PARTS & MACHINERY CATALOG
    MAIN STYLESHEET
@@ -1076,11 +1075,18 @@ footer {
   }
 
   .report {
-    break-before: page;
+    break-before: auto !important;
+    page-break-before: auto !important;
   }
 
-  .report:first-child {
-    break-before: auto;
+  .parts-report {
+    break-before: auto !important;
+    page-break-before: auto !important;
+  }
+
+  .parts-report-table {
+    break-before: auto !important;
+    page-break-before: auto !important;
   }
 
   .report-part {
@@ -1318,4 +1324,81 @@ footer {
 
 .delete-dialog-danger:hover {
   background: #b91c1c;
+}
+
+/* ==========================================
+   PRINT REPORTS — final layout rules
+   Four columns for parts reports; keep all related machines.
+   ========================================== */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+
+  html, body, .shell, main, #content, #report-output,
+  .catalog-report-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .report, .parts-report, .parts-report-table {
+    break-before: auto !important;
+    page-break-before: auto !important;
+    break-after: auto !important;
+    page-break-after: auto !important;
+  }
+
+  .parts-report {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  .parts-report-table {
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    table-layout: fixed !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 9pt !important;
+  }
+
+  .parts-report-table th,
+  .parts-report-table td {
+    display: table-cell !important;
+    visibility: visible !important;
+    border: 1px solid #555 !important;
+    padding: 1.5mm !important;
+    vertical-align: top !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  /* Parts report: photo / code / description / related machines */
+  .parts-report-table th:nth-child(1),
+  .parts-report-table td:nth-child(1) { width: 16%; }
+  .parts-report-table th:nth-child(2),
+  .parts-report-table td:nth-child(2) { width: 22%; }
+  .parts-report-table th:nth-child(3),
+  .parts-report-table td:nth-child(3) { width: 22%; }
+  .parts-report-table th:nth-child(4),
+  .parts-report-table td:nth-child(4) { width: 40%; }
+
+  .parts-report-table thead { display: table-header-group !important; }
+  .parts-report-table tbody { break-inside: auto !important; }
+  .parts-report-table tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .report-machine {
+    display: block !important;
+    visibility: visible !important;
+    margin-bottom: 1mm !important;
+    line-height: 1.25 !important;
+  }
+  .parts-report h2, .report-count {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
 }
