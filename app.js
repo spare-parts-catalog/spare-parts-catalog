@@ -441,6 +441,12 @@ function render() {
       <div class="search no-print">
         <input
           id="query"
+          name="catalog-search-no-history"
+          type="search"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
           value="${esc(q)}"
           placeholder="ค้นหารหัส รายละเอียด Item number หรือ Serial no."
           aria-label="ค้นหา"
@@ -489,11 +495,44 @@ function render() {
       paged(filterRecords());
     };
 
-    $('#search-button').onclick = () => {
-      q = $('#query').value;
+    
+  const searchAndOpen = () => {
+      q = $('#query').value.trim();
       offset = 0;
-      paged(filterRecords());
-    };
+
+    const matches = filterRecords();
+
+    const exactMatch = matches.find(record =>
+      String(record.code || '').trim().toLowerCase() === q.toLowerCase()
+    );
+
+    if (exactMatch) {
+      detail = exactMatch.id;
+      render();
+      window.scrollTo(0, 0);
+     return;
+    }
+
+      paged(matches);
+  };
+
+    $('#search-button').onclick = searchAndOpen;
+
+    $('#query').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        searchAndOpen();
+      }
+    });
+
+
+    $('#query').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        $('#search-button').click();
+        $('#query').blur();
+      }
+    });
 
     if ($('#kind')) {
       $('#kind').onchange = event => {
@@ -1472,113 +1511,108 @@ function reportMatches() {
 
 function reportHtml(rows) {
   const isMachine = reportKind === 'machine';
-
-  const title = isMachine
-    ? 'รายงานเครื่องจักร'
-    : 'รายงานอะไหล่';
+  const title = isMachine ? 'รายงานเครื่องจักร' : 'รายงานอะไหล่';
 
   const headers = isMachine
     ? [
-        'Equipment no.',
-        'Item number',
-        'Serial no.',
-        'Description',
-        'อะไหล่ที่เกี่ยวข้อง'
+        ['รหัสเครื่องจักร', 'Equipment no.'],
+        ['รหัสอะไหล่หลัก', 'Item number'],
+        ['หมายเลขเครื่อง', 'Serial no.'],
+        ['รายละเอียด', 'Description'],
+        ['อะไหล่ที่เกี่ยวข้อง', 'Related spare parts']
       ]
     : [
-        'รูปภาพ',
-        'Remark / รหัสอะไหล่',
-        'Description',
-        'เครื่องจักรที่เกี่ยวข้อง'
+        ['รูปภาพ', 'Photo'],
+        ['Remark / รหัสอะไหล่', 'Part number'],
+        ['รายละเอียด', 'Description'],
+        ['เครื่องจักรที่เกี่ยวข้อง', 'Related machines']
       ];
 
   const body = rows.map(record => {
+    const related = rel(record)
+      .filter(item => item.kind === (isMachine ? 'part' : 'machine'))
+      .map(item => isMachine
+        ? item.code + ' · ' + name(item)
+        : (item.data.description || '—'));
+
+    const relatedHtml = related.length
+      ? `<ul class="report-related-list">
+          ${related.map(text => `<li>${esc(text)}</li>`).join('')}
+        </ul>`
+      : '—';
+
+    const imageHtml = photos(record)
+      .map(photo => `
+        <img class="report-photo"
+             src="${photoUrl(photo)}"
+             alt="${esc(name(record))}">
+      `).join('');
 
     if (isMachine) {
-      const relatedParts = rel(record)
-        .filter(item => item.kind === 'part')
-        .map(item => `
-          <div class="report-machine">
-            ${esc(item.code + ' · ' + name(item))}
-          </div>
-        `)
-        .join('') || '—';
-
       return `
-        <tr>
-          <td>${esc(record.code)}</td>
+        <tr class="report-record">
+          <td>
+            ${esc(record.code)}
+            ${imageHtml
+              ? `<div class="report-image-stack">${imageHtml}</div>`
+              : ''}
+          </td>
           <td>${esc(record.data.item || '—')}</td>
           <td>${esc(record.serial || '—')}</td>
           <td>${esc(name(record))}</td>
-          <td>${relatedParts}</td>
+          <td class="report-related-cell">${relatedHtml}</td>
         </tr>
       `;
     }
 
-    const images = photos(record)
-      .map(photo => `
-        <img
-          class="report-photo"
-          src="${photoUrl(photo)}"
-          alt="${esc(name(record))}"
-        >
-      `)
-      .join('') || 'ไม่มีรูปภาพ';
-
-    const machines = rel(record)
-      .filter(item => item.kind === 'machine')
-      .map(item => `
-        <div class="report-machine">
-          ${esc(item.data.description || '—')}
-        </div>
-      `)
-      .join('') || '—';
-
     return `
-      <tr>
-        <td>${images}</td>
+      <tr class="report-record">
+        <td>
+          ${imageHtml ||
+            '<span class="report-no-image">ไม่มีรูปภาพ</span>'}
+        </td>
         <td>${esc(record.code)}</td>
         <td>${esc(name(record))}</td>
-        <td>${machines}</td>
+        <td class="report-related-cell">${relatedHtml}</td>
       </tr>
     `;
   }).join('');
 
   return `
-    <section class="box parts-report">
+    <section class="box parts-report ${isMachine
+      ? 'report-type-machine'
+      : 'report-type-part'}">
 
-      <h2 class="catalog-report-title">
-        ${title}
-      </h2>
-
-      <p class="report-count">
-        จำนวน ${rows.length} รายการ
-      </p>
+      <div class="report-heading">
+        <h2 class="catalog-report-title">
+          <span class="report-heading-icon" aria-hidden="true">
+            ${isMachine ? '⚙' : '▤'}
+          </span>
+          ${title}
+        </h2>
+        <p class="report-count">
+          จำนวน ${rows.length.toLocaleString('th-TH')} รายการ
+        </p>
+      </div>
 
       <div class="catalog-report-scroll">
-
         <table class="parts-report-table">
-
           <thead>
             <tr>
-              ${headers.map(header => `
-                <th>${header}</th>
+              ${headers.map(([th, en]) => `
+                <th>
+                  ${esc(th)}
+                  <span class="report-header-en">${esc(en)}</span>
+                </th>
               `).join('')}
             </tr>
           </thead>
-
-          <tbody>
-            ${body}
-          </tbody>
-
+          <tbody>${body}</tbody>
         </table>
-
       </div>
-
     </section>
   `;
 }
-
 
 // ---------- Report Output ----------
 
@@ -2229,7 +2263,7 @@ document.addEventListener('click', async event => {
       }
 
       @page {
-        size: A4 landscape;
+        size: A4 portrait;
         margin: 10mm;
       }
     }
@@ -2719,3 +2753,36 @@ function confirmDeleteDialog(
   });
 })();
 
+
+/* รายงาน: หนึ่งรายการต่อหนึ่งแถว ไม่แยกเครื่องจักรที่เกี่ยวข้องเป็นช่อง */
+reportHtml = function (rows) {
+  const isMachine = reportKind === 'machine';
+  const title = isMachine ? 'รายงานเครื่องจักร' : 'รายงานอะไหล่';
+  const headers = isMachine
+    ? [['รหัสเครื่องจักร','Equipment no.'], ['รหัสอะไหล่หลัก','Item number'], ['หมายเลขเครื่อง','Serial no.'], ['รายละเอียด','Description'], ['อะไหล่ที่เกี่ยวข้อง','Related spare parts']]
+    : [['รูปภาพ','Photo'], ['Remark / รหัสอะไหล่','Part number'], ['รายละเอียด','Description'], ['เครื่องจักรที่เกี่ยวข้อง','Related machines']];
+
+  const body = rows.map(record => {
+    const related = rel(record)
+      .filter(item => item.kind === (isMachine ? 'part' : 'machine'))
+      .map(item => isMachine ? item.code + ' · ' + name(item) : (item.data.description || '—'));
+    const relatedHtml = related.length
+      ? `<ul class="report-related-list">${related.map(text => `<li>${esc(text)}</li>`).join('')}</ul>`
+      : '—';
+    const imageHtml = photos(record)
+      .map(photo => `<img class="report-photo" src="${photoUrl(photo)}" alt="${esc(name(record))}">`)
+      .join('') || '<span class="report-no-image">ไม่มีรูปภาพ</span>';
+    const cells = isMachine
+      ? `<td>${esc(record.code)}</td><td>${esc(record.data.item || '—')}</td><td>${esc(record.serial || '—')}</td><td>${esc(name(record))}</td><td class="report-related-cell">${relatedHtml}</td>`
+      : `<td>${imageHtml}</td><td>${esc(record.code)}</td><td>${esc(name(record))}</td><td class="report-related-cell">${relatedHtml}</td>`;
+    return `<tr class="report-record">${cells}</tr>`;
+  }).join('');
+
+  return `<section class="box parts-report ${isMachine ? 'report-type-machine' : 'report-type-part'}">
+    <div class="report-heading"><h2 class="catalog-report-title">${title}</h2><p class="report-count">จำนวน ${rows.length.toLocaleString('th-TH')} รายการ</p></div>
+    <div class="catalog-report-scroll"><table class="parts-report-table">
+      <thead><tr>${headers.map(([th,en]) => `<th>${esc(th)}<span class="report-header-en">${esc(en)}</span></th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </section>`;
+};

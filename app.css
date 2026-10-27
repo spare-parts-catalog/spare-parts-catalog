@@ -1331,7 +1331,7 @@ footer {
    Four columns for parts reports; keep all related machines.
    ========================================== */
 @media print {
-  @page { size: A4 landscape; margin: 10mm; }
+  @page { size: A4 portrait; margin: 10mm; }
 
   html, body, .shell, main, #content, #report-output,
   .catalog-report-scroll {
@@ -1401,4 +1401,310 @@ footer {
     break-after: avoid !important;
     page-break-after: avoid !important;
   }
+}
+
+
+/* ===== รูปแบบรายงานเครื่องจักรและอะไหล่ ===== */
+
+.parts-report .report-heading {
+  text-align: center;
+  padding: 18px 0;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #2674b8;
+}
+
+.parts-report .catalog-report-title {
+  color: #18324f;
+  font-size: 30px;
+  margin: 0 0 8px;
+}
+
+.parts-report .report-heading-icon {
+  margin-right: 16px;
+  color: #294866;
+}
+
+.parts-report .report-count {
+  color: #475569;
+  margin: 0;
+}
+
+.parts-report .parts-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.parts-report .parts-report-table th {
+  background: #294866;
+  color: #fff;
+  text-align: center;
+  padding: 14px 10px;
+  border: 1px solid #a5b6c7;
+  font-weight: 700;
+}
+
+.parts-report .report-header-en {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.parts-report .parts-report-table td {
+  border: 1px solid #b5c4d3;
+  padding: 12px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.parts-report .report-related-list {
+  margin: 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.parts-report .report-related-list li {
+  padding: 0 0 5px 2px;
+  line-height: 1.45;
+}
+
+.parts-report .report-related-list li::marker {
+  color: #2674b8;
+}
+
+.parts-report .report-image-stack {
+  margin-top: 12px;
+}
+
+.parts-report .report-photo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 140px;
+  height: auto;
+  margin: 4px auto;
+  object-fit: contain;
+}
+
+.parts-report .report-continued,
+.parts-report .report-no-image {
+  color: #64748b;
+  font-size: 11px;
+}
+
+/* ความกว้างคอลัมน์รายงานเครื่องจักร */
+.parts-report.report-type-machine th:nth-child(1) { width: 21%; }
+.parts-report.report-type-machine th:nth-child(2) { width: 17%; }
+.parts-report.report-type-machine th:nth-child(3) { width: 17%; }
+.parts-report.report-type-machine th:nth-child(4) { width: 22%; }
+.parts-report.report-type-machine th:nth-child(5) { width: 23%; }
+
+/* ความกว้างคอลัมน์รายงานอะไหล่ */
+.parts-report.report-type-part th:nth-child(1) { width: 17%; }
+.parts-report.report-type-part th:nth-child(2) { width: 23%; }
+.parts-report.report-type-part th:nth-child(3) { width: 25%; }
+.parts-report.report-type-part th:nth-child(4) { width: 35%; }
+
+/* ===== สำหรับพิมพ์และบันทึก PDF ===== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html, body, .shell, main, #content,
+  #report-output, .catalog-report-scroll,
+  .parts-report {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .parts-report {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .parts-report .report-heading {
+    padding: 0 0 3mm !important;
+    margin: 0 0 4mm !important;
+  }
+
+  .parts-report .catalog-report-title {
+    font-size: 20pt !important;
+    margin: 0 0 1mm !important;
+  }
+
+  .parts-report .report-count {
+    font-size: 10pt !important;
+  }
+
+  .parts-report .parts-report-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 9pt !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+  }
+
+  .parts-report .parts-report-table th {
+    background: #294866 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    padding: 2.2mm 1.4mm !important;
+    border: .25mm solid #9fb0c1 !important;
+  }
+
+  .parts-report .parts-report-table td {
+    display: table-cell !important;
+    border: .25mm solid #9fb0c1 !important;
+    padding: 1.8mm !important;
+    font-size: 9pt !important;
+  }
+
+  .parts-report .parts-report-table thead {
+    display: table-header-group !important;
+  }
+
+  .parts-report .parts-report-table tbody {
+    break-inside: auto !important;
+  }
+
+  .parts-report .parts-report-table tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .parts-report .report-photo {
+    width: auto !important;
+    max-width: 30mm !important;
+    max-height: 30mm !important;
+    height: auto !important;
+  }
+
+  .parts-report .report-related-list {
+    padding-left: 4mm !important;
+  }
+
+  .parts-report .report-related-list li {
+    padding-bottom: .6mm !important;
+  }
+
+  .parts-report .report-heading,
+  .parts-report .catalog-report-title,
+  .parts-report .report-count {
+    break-after: avoid !important;
+  }
+}
+
+
+/* ==========================================
+   รายงาน: รายการที่เกี่ยวข้องชิดซ้าย
+   ไม่แบ่งรายการเดียวเป็นหลายแถว
+========================================== */
+
+.parts-report .parts-report-table td.report-related-cell {
+  text-align: left !important;
+  vertical-align: top !important;
+}
+
+.parts-report .report-related-list {
+  list-style: disc outside !important;
+  margin: 0 !important;
+  padding-left: 20px !important;
+  text-align: left !important;
+}
+
+.parts-report .report-related-list li {
+  text-align: left !important;
+  line-height: 1.45 !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+}
+
+.parts-report .report-related-list li::marker {
+  color: #2674b8;
+}
+
+@media print {
+  .parts-report .parts-report-table td.report-related-cell {
+    text-align: left !important;
+  }
+
+  .parts-report .report-related-list {
+    padding-left: 4mm !important;
+    margin: 0 !important;
+  }
+
+  .parts-report .report-related-list li {
+    text-align: left !important;
+    margin-bottom: 1mm !important;
+    line-height: 1.3 !important;
+  }
+
+  /* อนุญาตให้แถวยาวต่อข้ามหน้ากระดาษ */
+  .parts-report .parts-report-table tr.report-record {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+}
+
+
+/* ===== ปรับเส้นตารางสำหรับพิมพ์รายงาน ===== */
+@media print {
+  .parts-report-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: 1px solid #7892ad !important;
+    width: 100% !important;
+  }
+
+  .parts-report-table th,
+  .parts-report-table td {
+    border-top: 0 !important;
+    border-left: 0 !important;
+    border-right: 1px solid #7892ad !important;
+    border-bottom: 1px solid #7892ad !important;
+  }
+
+  .parts-report-table th:last-child,
+  .parts-report-table td:last-child {
+    border-right: 0 !important;
+  }
+
+  .parts-report-table thead {
+    display: table-header-group !important;
+  }
+
+  .parts-report-table tr.report-record {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+
+  .parts-report-table td.report-related-cell,
+  .parts-report-table .report-related-list,
+  .parts-report-table .report-related-list li {
+    text-align: left !important;
+  }
+}
+
+
+/* FINAL REPORT PRINT RULES — avoid artificial page-bottom lines */
+@media print {
+  @page { size: A4 portrait; margin: 12mm 10mm; }
+  body:has(.parts-report)::after { content: none !important; display: none !important; }
+  .parts-report .parts-report-table { border-collapse: collapse !important; border-spacing: 0 !important; width: 100% !important; }
+  .parts-report .parts-report-table thead { display: table-header-group !important; }
+  .parts-report .parts-report-table th { padding: 2.5mm 1.5mm !important; }
+  .parts-report .parts-report-table td { padding: 2mm 1.5mm !important; vertical-align: top !important; }
+  .parts-report .parts-report-table th, .parts-report .parts-report-table td { border: 1px solid #7892ad !important; }
+  .parts-report .parts-report-table tr.report-record { break-inside: auto !important; page-break-inside: auto !important; }
+  .parts-report .report-related-cell, .parts-report .report-related-list, .parts-report .report-related-list li { text-align: left !important; }
+  .parts-report .report-related-list { margin: 0 !important; padding-left: 4mm !important; }
+  .parts-report .report-related-list li { margin: 0 0 1mm !important; line-height: 1.35 !important; break-inside: avoid !important; }
+  .parts-report .report-heading { break-after: avoid !important; }
 }
