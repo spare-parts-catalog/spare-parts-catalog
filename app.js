@@ -45,7 +45,7 @@ let initialRoute = true;
 let selected = new Set();
 let qrSelected = new Set();
 
-let reportKind = 'part';
+let reportKind = 'machine';
 let reportQuery = '';
 let reportCategory = '';
 
@@ -1376,7 +1376,7 @@ function renderQr() {
       </div>
 
       <button id="qr-all">
-        เลือก/ยกเลิกผลค้นหาทั้งหมด
+        เลือก/ยกเลิกเครื่องจักรที่ค้นหาทั้งหมด
       </button>
 
       <button id="qr-clear">
@@ -1480,302 +1480,139 @@ function renderQr() {
   draw();
 }
 
-// ---------- Report Search ----------
+// ---------- Machine-only Reports (grouped by Item number) ----------
+
+function reportGroups(records = db.records.filter(record => record.kind === 'machine')) {
+  const groups = new Map();
+  records.filter(record => record.kind === 'machine').forEach(record => {
+    const itemNumber = String(record.data.item || '').trim();
+    // Machines without an Item number must not be merged into one unrelated group.
+    const key = itemNumber
+      ? 'item:' + itemNumber.replace(/\s+/g, ' ').toLocaleLowerCase()
+      : 'machine:' + record.id;
+    if (!groups.has(key)) {
+      groups.set(key, { itemNumber: itemNumber || '—', machines: [], parts: new Map() });
+    }
+    const group = groups.get(key);
+    group.machines.push(record);
+    rel(record).filter(item => item.kind === 'part').forEach(part => {
+      group.parts.set(part.id, part);
+    });
+  });
+  return [...groups.values()].sort((a, b) =>
+    a.itemNumber.localeCompare(b.itemNumber, 'en', { numeric: true, sensitivity: 'base' }) ||
+    compareRecords(a.machines[0], b.machines[0])
+  );
+}
 
 function reportMatches() {
+  const search = reportQuery.trim().toLocaleLowerCase();
   return db.records.filter(record => {
-    if (record.kind !== reportKind) {
-      return false;
-    }
-
-    if (
-      reportCategory &&
-      record.data.category !== reportCategory
-    ) {
-      return false;
-    }
-
-    const text = [
-      record.code,
-      record.serial,
-      ...Object.values(record.data),
-      ...rel(record).map(machineLabel)
-    ].join(' ').toLowerCase();
-
-    return text.includes(reportQuery.toLowerCase());
-  });
+    if (record.kind !== 'machine') return false;
+    const related = rel(record).filter(item => item.kind === 'part');
+    const text = [record.code, record.serial, ...Object.values(record.data),
+      ...related.flatMap(part => [part.code, name(part)])
+    ].join(' ').toLocaleLowerCase();
+    return text.includes(search);
+  }).sort(compareRecords);
 }
 
-// ---------- Report Table ----------
-
-
-function reportHtml(rows) {
-  const isMachine = reportKind === 'machine';
-  const title = isMachine ? 'รายงานเครื่องจักร' : 'รายงานอะไหล่';
-
-  const headers = isMachine
-    ? [
-        ['รหัสเครื่องจักร', 'Equipment no.'],
-        ['รหัสอะไหล่หลัก', 'Item number'],
-        ['หมายเลขเครื่อง', 'Serial no.'],
-        ['รายละเอียด', 'Description'],
-        ['อะไหล่ที่เกี่ยวข้อง', 'Related spare parts']
-      ]
-    : [
-        ['รูปภาพ', 'Photo'],
-        ['Remark / รหัสอะไหล่', 'Part number'],
-        ['รายละเอียด', 'Description'],
-        ['เครื่องจักรที่เกี่ยวข้อง', 'Related machines']
-      ];
-
-  const body = rows.map(record => {
-    const related = rel(record)
-      .filter(item => item.kind === (isMachine ? 'part' : 'machine'))
-      .map(item => isMachine
-        ? item.code + ' · ' + name(item)
-        : (item.data.description || '—'));
-
-    const relatedHtml = related.length
-      ? `<ul class="report-related-list">
-          ${related.map(text => `<li>${esc(text)}</li>`).join('')}
-        </ul>`
+function reportHtml(groups) {
+  const headers = [
+    ['Equipment no.', ''],
+    ['Item number', ''],
+    ['Serial no.', ''],
+    ['Description', ''],
+    ['Related spare parts', '']
+  ];
+  const lines = values => values.map(value => `<div class="report-group-line">${esc(value || '—')}</div>`).join('');
+  const body = groups.map(group => {
+    const parts = [...group.parts.values()].sort(compareRecords);
+    const related = parts.length
+      ? `<ul class="report-related-list">${parts.map(part => `<li>${esc(name(part))}</li>`).join('')}</ul>`
       : '—';
-
-    const imageHtml = photos(record)
-      .map(photo => `
-        <img class="report-photo"
-             src="${photoUrl(photo)}"
-             alt="${esc(name(record))}">
-      `).join('');
-
-    if (isMachine) {
-      return `
-        <tr class="report-record">
-          <td>
-            ${esc(record.code)}
-            ${imageHtml
-              ? `<div class="report-image-stack">${imageHtml}</div>`
-              : ''}
-          </td>
-          <td>${esc(record.data.item || '—')}</td>
-          <td>${esc(record.serial || '—')}</td>
-          <td>${esc(name(record))}</td>
-          <td class="report-related-cell">${relatedHtml}</td>
-        </tr>
-      `;
-    }
-
-    return `
-      <tr class="report-record">
-        <td>
-          ${imageHtml ||
-            '<span class="report-no-image">ไม่มีรูปภาพ</span>'}
-        </td>
-        <td>${esc(record.code)}</td>
-        <td>${esc(name(record))}</td>
-        <td class="report-related-cell">${relatedHtml}</td>
-      </tr>
-    `;
+    return `<tr class="report-record report-group-record">
+      <td>${lines(group.machines.map(record => record.data.equipment || record.code))}</td>
+      <td>${esc(group.itemNumber)}</td>
+      <td>${lines(group.machines.map(record => record.serial || record.data.serial || '—'))}</td>
+      <td>${lines(group.machines.map(record => record.data.description || '—'))}</td>
+      <td class="report-related-cell">${related}</td>
+    </tr>`;
   }).join('');
-
-  return `
-    <section class="box parts-report ${isMachine
-      ? 'report-type-machine'
-      : 'report-type-part'}">
-
-      <div class="report-heading">
-        <h2 class="catalog-report-title">
-          <span class="report-heading-icon" aria-hidden="true">
-            ${isMachine ? '⚙' : '▤'}
-          </span>
-          ${title}
-        </h2>
-        <p class="report-count">
-          จำนวน ${rows.length.toLocaleString('th-TH')} รายการ
-        </p>
-      </div>
-
-      <div class="catalog-report-scroll">
-        <table class="parts-report-table">
-          <thead>
-            <tr>
-              ${headers.map(([th, en]) => `
-                <th>
-                  ${esc(th)}
-                  <span class="report-header-en">${esc(en)}</span>
-                </th>
-              `).join('')}
-            </tr>
-          </thead>
-          <tbody>${body}</tbody>
-        </table>
-      </div>
-    </section>
-  `;
+  const count = groups.reduce((sum, group) => sum + group.machines.length, 0);
+  return `<section class="box parts-report report-type-machine">
+    <div class="report-heading"><h2 class="catalog-report-title">รายงานเครื่องจักร</h2>
+    <p class="report-count">${groups.length.toLocaleString('th-TH')} กลุ่ม Item number · ${count.toLocaleString('th-TH')} เครื่องจักร</p></div>
+    <div class="catalog-report-scroll"><table class="parts-report-table">
+    <thead><tr>${headers.map(([th]) => `<th>${esc(th)}</th>`).join('')}</tr></thead>
+    <tbody>${body}</tbody></table></div></section>`;
 }
-
-// ---------- Report Output ----------
 
 function showOutput() {
-  const rows = db.records.filter(
-    record =>
-      record.kind === reportKind &&
-      selected.has(record.id)
-  );
-
-  $('#report-output').innerHTML = rows.length
-    ? reportHtml(rows)
-    : `
-      <div class="empty no-print">
-        เลือกรายการเพื่อแสดงรายงาน
-      </div>
-    `;
-
-  $('#pdf').disabled = !rows.length;
+  const groups = reportGroups(db.records.filter(record => record.kind === 'machine' && selected.has(record.id)));
+  $('#report-output').innerHTML = groups.length
+    ? reportHtml(groups)
+    : '<div class="empty no-print">เลือกเครื่องจักรเพื่อแสดงรายงาน</div>';
+  $('#pdf').disabled = !groups.length;
 }
-
-// ---------- Report Page ----------
 
 function renderReports() {
   $('#content').innerHTML = `
-    ${heading(
-      'รายงานสรุป',
-      'เลือกประเภท ค้นหา และเลือกรายการที่ต้องการพิมพ์',
-      `<button id="pdf" class="primary" disabled>
-        พิมพ์ / บันทึก PDF
-      </button>`
-    )}
-
+    ${heading('รายงานสรุป', 'รายงานเครื่องจักร จัดกลุ่มตาม Item number',
+      '<button id="pdf" class="primary" disabled>พิมพ์ / บันทึก PDF</button>')}
     <section class="box no-print">
       <div class="search">
-        <select id="report-kind">
-          <option value="part">อะไหล่</option>
-          <option value="machine">เครื่องจักร</option>
-        </select>
-
-        <input
-          id="report-query"
-          value="${esc(reportQuery)}"
-          placeholder="ค้นหาทุกฟิลด์และรายการที่เกี่ยวข้อง"
-        >
-
-        <select id="report-category">
-          <option value="">ทุกหมวดหมู่</option>
-
-          ${db.categories.map(category => `
-            <option value="${esc(category.code)}">
-              ${esc(category.code + ' ' + category.name)}
-            </option>
-          `).join('')}
-        </select>
+        <input id="report-query" value="${esc(reportQuery)}"
+          placeholder="ค้นหา Item number, Description, Equipment no., Serial no. หรืออะไหล่ที่เกี่ยวข้อง">
       </div>
-
       <div class="actions">
-        <button id="select-results">
-          เลือก/ยกเลิกผลค้นหาทั้งหมด
-        </button>
-
-        <button id="clear-report">
-          ล้างตัวกรองและการเลือก
-        </button>
+        <button id="select-results">เลือก/ยกเลิกเครื่องจักรที่ค้นหาทั้งหมด</button>
+        <button id="clear-report">ล้างตัวกรองและการเลือก</button>
       </div>
-
-      <div
-        id="report-selection"
-        class="linklist"
-      ></div>
+      <p id="report-group-count"></p>
+      <div id="report-selection" class="linklist"></div>
     </section>
-
-    <div id="report-output"></div>
-  `;
-
-  $('#report-kind').value = reportKind;
-  $('#report-category').value = reportCategory;
-  $('#report-category').disabled =
-    reportKind === 'machine';
+    <div id="report-output"></div>`;
 
   function update() {
-    const rows = reportMatches();
-
-    $('#report-selection').innerHTML = rows.map(
-      record => `
-        <label class="check">
-          <input
-            type="checkbox"
-            data-report-select="${esc(record.id)}"
-            ${selected.has(record.id) ? 'checked' : ''}
-          >
-
-          <span>
-            ${esc(
-              record.kind === 'machine'
-                ? machineLabel(record)
-                : record.code + ' · ' + name(record)
-            )}
-          </span>
-        </label>
-      `
-    ).join('') || '<div class="empty">ไม่พบข้อมูล</div>';
-
+    const machines = reportMatches();
+    $('#report-group-count').textContent = `พบ ${machines.length} เครื่องจักร`;
+    $('#report-selection').innerHTML = machines.map(record => {
+      const key = record.id;
+      return `<label class="check">
+        <input type="checkbox" data-report-select="${esc(key)}" ${selected.has(key) ? 'checked' : ''}>
+        <span><strong>${esc(name(record))}</strong> · ${esc(record.code)} · Item number: ${esc(record.data.item || '—')}</span>
+      </label>`;
+    }).join('') || '<div class="empty">ไม่พบข้อมูล</div>';
     showOutput();
   }
-
-  $('#report-kind').onchange = event => {
-    reportKind = event.target.value;
-    reportCategory = '';
-    selected.clear();
-    renderReports();
-  };
 
   $('#report-query').oninput = event => {
     reportQuery = event.target.value;
     update();
   };
-
-  $('#report-category').onchange = event => {
-    reportCategory = event.target.value;
-    update();
-  };
-
   $('#select-results').onclick = () => {
-    const rows = reportMatches();
-
-    const allSelected =
-      rows.length > 0 &&
-      rows.every(record => selected.has(record.id));
-
-    rows.forEach(record => {
-      if (allSelected) {
-        selected.delete(record.id);
-      } else {
-        selected.add(record.id);
-      }
+    const machines = reportMatches();
+    const allSelected = machines.length > 0 && machines.every(record => selected.has(record.id));
+    machines.forEach(record => {
+      const key = record.id;
+      if (allSelected) selected.delete(key);
+      else selected.add(key);
     });
-
     update();
   };
-
   $('#clear-report').onclick = () => {
     selected.clear();
-    reportCategory = '';
     reportQuery = '';
     renderReports();
   };
-
   $('#report-selection').onchange = event => {
-    const id = event.target.dataset.reportSelect;
-
-    if (!id) return;
-
-    if (event.target.checked) {
-      selected.add(id);
-    } else {
-      selected.delete(id);
-    }
-
+    const key = event.target.dataset.reportSelect;
+    if (!key) return;
+    if (event.target.checked) selected.add(key);
+    else selected.delete(key);
     showOutput();
   };
-
   $('#pdf').onclick = async () => {
     try {
       await readyToPrint($('#report-output'));
@@ -1784,7 +1621,6 @@ function renderReports() {
       msg(error.message, true);
     }
   };
-
   update();
 }
 
@@ -2752,37 +2588,3 @@ function confirmDeleteDialog(
     subtree: true
   });
 })();
-
-
-/* รายงาน: หนึ่งรายการต่อหนึ่งแถว ไม่แยกเครื่องจักรที่เกี่ยวข้องเป็นช่อง */
-reportHtml = function (rows) {
-  const isMachine = reportKind === 'machine';
-  const title = isMachine ? 'รายงานเครื่องจักร' : 'รายงานอะไหล่';
-  const headers = isMachine
-    ? [['รหัสเครื่องจักร','Equipment no.'], ['รหัสอะไหล่หลัก','Item number'], ['หมายเลขเครื่อง','Serial no.'], ['รายละเอียด','Description'], ['อะไหล่ที่เกี่ยวข้อง','Related spare parts']]
-    : [['รูปภาพ','Photo'], ['Remark / รหัสอะไหล่','Part number'], ['รายละเอียด','Description'], ['เครื่องจักรที่เกี่ยวข้อง','Related machines']];
-
-  const body = rows.map(record => {
-    const related = rel(record)
-      .filter(item => item.kind === (isMachine ? 'part' : 'machine'))
-      .map(item => isMachine ? item.code + ' · ' + name(item) : (item.data.description || '—'));
-    const relatedHtml = related.length
-      ? `<ul class="report-related-list">${related.map(text => `<li>${esc(text)}</li>`).join('')}</ul>`
-      : '—';
-    const imageHtml = photos(record)
-      .map(photo => `<img class="report-photo" src="${photoUrl(photo)}" alt="${esc(name(record))}">`)
-      .join('') || '<span class="report-no-image">ไม่มีรูปภาพ</span>';
-    const cells = isMachine
-      ? `<td>${esc(record.code)}</td><td>${esc(record.data.item || '—')}</td><td>${esc(record.serial || '—')}</td><td>${esc(name(record))}</td><td class="report-related-cell">${relatedHtml}</td>`
-      : `<td>${imageHtml}</td><td>${esc(record.code)}</td><td>${esc(name(record))}</td><td class="report-related-cell">${relatedHtml}</td>`;
-    return `<tr class="report-record">${cells}</tr>`;
-  }).join('');
-
-  return `<section class="box parts-report ${isMachine ? 'report-type-machine' : 'report-type-part'}">
-    <div class="report-heading"><h2 class="catalog-report-title">${title}</h2><p class="report-count">จำนวน ${rows.length.toLocaleString('th-TH')} รายการ</p></div>
-    <div class="catalog-report-scroll"><table class="parts-report-table">
-      <thead><tr>${headers.map(([th,en]) => `<th>${esc(th)}<span class="report-header-en">${esc(en)}</span></th>`).join('')}</tr></thead>
-      <tbody>${body}</tbody>
-    </table></div>
-  </section>`;
-};
