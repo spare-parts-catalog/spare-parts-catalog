@@ -1518,13 +1518,7 @@ function reportMatches() {
 }
 
 function reportHtml(groups) {
-  const headers = [
-    ['Equipment no.', ''],
-    ['Item number', ''],
-    ['Serial no.', ''],
-    ['Description', ''],
-    ['Related spare parts', '']
-  ];
+  const headers = ['ชื่อเครื่องจักร', 'อะไหล่ที่เกี่ยวข้อง', 'Item number', 'Equipment no.'];
   const lines = values => values.map(value => `<div class="report-group-line">${esc(value || '—')}</div>`).join('');
   const body = groups.map(group => {
     const parts = [...group.parts.values()].sort(compareRecords);
@@ -1532,11 +1526,10 @@ function reportHtml(groups) {
       ? `<ul class="report-related-list">${parts.map(part => `<li>${esc(name(part))}</li>`).join('')}</ul>`
       : '—';
     return `<tr class="report-record report-group-record">
-      <td>${lines(group.machines.map(record => record.data.equipment || record.code))}</td>
-      <td>${esc(group.itemNumber)}</td>
-      <td>${lines(group.machines.map(record => record.serial || record.data.serial || '—'))}</td>
       <td>${lines(group.machines.map(record => record.data.description || '—'))}</td>
       <td class="report-related-cell">${related}</td>
+      <td>${esc(group.itemNumber)}</td>
+      <td>${lines(group.machines.map(record => record.data.equipment || record.code))}</td>
     </tr>`;
   }).join('');
   const count = groups.reduce((sum, group) => sum + group.machines.length, 0);
@@ -1544,7 +1537,7 @@ function reportHtml(groups) {
     <div class="report-heading"><h2 class="catalog-report-title">รายงานเครื่องจักร</h2>
     <p class="report-count">${groups.length.toLocaleString('th-TH')} กลุ่ม Item number · ${count.toLocaleString('th-TH')} เครื่องจักร</p></div>
     <div class="catalog-report-scroll"><table class="parts-report-table">
-    <thead><tr>${headers.map(([th]) => `<th>${esc(th)}</th>`).join('')}</tr></thead>
+    <thead><tr>${headers.map(th => `<th>${esc(th)}</th>`).join('')}</tr></thead>
     <tbody>${body}</tbody></table></div></section>`;
 }
 
